@@ -10,7 +10,9 @@ plugin and its own single-plugin marketplace.
 
 ## Layout
 
-- `.claude-plugin/plugin.json` — plugin manifest; `hooks` points to `./hooks/hooks.json`.
+- `.claude-plugin/plugin.json` — plugin manifest. Does **not** declare a `hooks` key:
+  Claude Code auto-loads `hooks/hooks.json`, so referencing it here causes a
+  "Duplicate hooks file" load error.
 - `.claude-plugin/marketplace.json` — self-referential marketplace (`source: "./"`).
 - `hooks/hooks.json` — maps `Stop` → `play.sh done` and `Notification` → `play.sh asking`.
 - `scripts/play.sh` — picks a random `.mp3` from `audio/<category>/` and plays it detached.
