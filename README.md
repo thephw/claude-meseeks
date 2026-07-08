@@ -57,9 +57,16 @@ folder matches the event.
 plays it in a detached background process. The hook always exits 0, so it never blocks or
 errors your session.
 
+## Credits
+
+Inspired by and audio sourced from the
+[Mr. Meeseeks Soundboard](https://jayuzumi.com/mr-meeseeks-soundboard) at jayuzumi.com.
+Thanks for the clips! 🔵
+
 ## Note on the audio
 
-The voice clips are from *Rick and Morty* (sourced via jayuzumi.com) and are included here
-for personal, non-commercial fun. They are the property of their respective rights holders.
-Please consider those rights before redistributing this plugin publicly or swap in your own
-audio.
+The voice clips are from *Rick and Morty* (via the
+[jayuzumi.com Mr. Meeseeks Soundboard](https://jayuzumi.com/mr-meeseeks-soundboard)) and are
+included here for personal, non-commercial fun. They are the property of their respective
+rights holders. Please consider those rights before redistributing this plugin publicly or
+swap in your own audio.
