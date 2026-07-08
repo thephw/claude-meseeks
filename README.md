@@ -52,42 +52,47 @@ the binary. You can drive it by hand too:
 ```
 meeseeks play                      # random "done" clip, detached
 meeseeks play asking               # random "asking" clip
-meeseeks play extra --wait         # a wildcard clip, blocking until it finishes
+meeseeks play feedback --wait      # a prompt-submit clip, blocking until it finishes
 meeseeks play --clip "ALL DONE"    # a specific clip by name
 meeseeks list all                  # list every embedded clip
 ```
 
 ## How it works
 
-`hooks/hooks.json` registers a single `Notification` hook that runs `scripts/play.sh notify`.
-That launcher execs the prebuilt `bin/meeseeks-<os>-<arch>` for your platform (falling back
-to `go build` from source if there's no matching binary, or staying silent if neither is
-available), passing the event's JSON through on stdin.
+`hooks/hooks.json` registers `Notification` and `UserPromptSubmit` hooks that both run
+`scripts/play.sh notify`. That launcher execs the prebuilt `bin/meeseeks-<os>-<arch>` for
+your platform (falling back to `go build` from source if there's no matching binary, or
+staying silent if neither is available), passing the event's JSON through on stdin.
 
-`meeseeks notify` reads that JSON and looks at `notification_type`:
+`meeseeks notify` reads that JSON and looks at `hook_event_name` and `notification_type`:
 
-| `notification_type`                                      | Result           |
+| Event                                                    | Result           |
 | -------------------------------------------------------- | ---------------- |
-| `idle_prompt` (Claude done, awaiting your prompt)        | random `done`    |
-| `permission_prompt` (Claude needs approval)              | random `asking`  |
+| `UserPromptSubmit` (you just sent Claude a prompt)       | random `feedback`|
+| `Notification` + `idle_prompt` (Claude done, your turn)  | random `done`    |
+| `Notification` + `permission_prompt` (needs approval)    | random `asking`  |
 | anything else (`agent_completed`, `auth_success`, …)     | silence          |
 
 The chosen clip is extracted from the embedded audio to a cache dir and handed to a system
 player in a detached process. Every path exits 0, so the hook never blocks or errors your
 session.
 
+Each category can be silenced independently via the plugin's config options
+(`enableDone` / `enableAsking` / `enableFeedback`) — Claude Code prompts for these when you
+enable the plugin, and passes them to the hook as `CLAUDE_PLUGIN_OPTION_*` env vars. They
+default to on; only automatic hook playback is gated (manual `meeseeks play` always plays).
+
 > **Why not the `Stop` hook?** `Stop` fires at the end of *every* turn — including
 > auto-continuations — so it plays sounds when you aren't actually being waited on. The
-> `Notification` type filter is the reliable signal for "it's your turn."
+> event-type filter is the reliable signal for "it's your turn."
 
 ## Customizing clips
 
 Clips live under `audio/`, sorted into three folders that map to behavior:
 
-- `audio/done/` — played on turn-end.
+- `audio/done/` — played when Claude finishes and it's your turn (idle prompt).
 - `audio/asking/` — played on permission/input prompts.
-- `audio/extra/` — embedded but **unused by the hooks** (longer/narrative/darker lines);
-  still reachable via `meeseeks play extra`.
+- `audio/feedback/` — played every time you submit a prompt to Claude.
 
 To change what plays, move `.mp3` files between the folders or drop your own in, then
 **rebuild the binaries** so the new clips are re-embedded:

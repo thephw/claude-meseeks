@@ -1,8 +1,28 @@
 {
   "name": "claude-meseeks",
   "displayName": "Claude Meeseeks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Existence is pain — plays a Mr. Meeseeks voice line whenever Claude is waiting for you.",
   "author": { "name": "Patrick Wiseman" },
-  "keywords": ["audio", "sound", "notification", "fun", "meeseeks"]
+  "keywords": ["audio", "sound", "notification", "fun", "meeseeks"],
+  "userConfig": {
+    "enableDone": {
+      "type": "boolean",
+      "title": "Play \"done\" clip when Claude finishes",
+      "description": "Plays a Meeseeks line when Claude finishes and it's your turn (idle prompt).",
+      "default": true
+    },
+    "enableAsking": {
+      "type": "boolean",
+      "title": "Play \"asking\" clip when Claude needs approval",
+      "description": "Plays a Meeseeks line when Claude is waiting on a permission prompt.",
+      "default": true
+    },
+    "enableFeedback": {
+      "type": "boolean",
+      "title": "Play \"feedback\" clip when you send a prompt",
+      "description": "Plays a Meeseeks line every time you submit a prompt to Claude.",
+      "default": true
+    }
+  }
 }
