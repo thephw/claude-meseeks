@@ -1,35 +1,40 @@
 #!/usr/bin/env bash
-# Play a random Mr. Meeseeks voice line for the given category.
-# Usage: play.sh [done|asking]
-# Invoked by Claude Code Stop / Notification hooks. Must never block or fail the hook.
+# Launcher for the `meeseeks` Go binary — the hook entry point.
+# Usage: play.sh <args...>   (forwarded verbatim to the binary)
+#   e.g. play.sh notify        (Notification hook; reads JSON on stdin)
+#        play.sh play done      (manual)
+#
+# Runs the prebuilt binary for this platform; if none matches, builds from
+# source (requires Go) into a cache. Must never block or fail the hook, so
+# every path ends in exit 0. The binary itself detaches playback. stdin is
+# inherited through exec so `notify` can read the hook payload.
 
-category="${1:-done}"
 root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-dir="${root}/audio/${category}"
+[ "$#" -eq 0 ] && set -- play done
 
-# Nothing to play? Exit quietly — a hook must never error out.
-[ -d "$dir" ] || exit 0
+# Normalize OS/arch to the bin/ naming scheme.
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+arch="$(uname -m)"
+case "$arch" in
+  x86_64 | amd64) arch=amd64 ;;
+  arm64 | aarch64) arch=arm64 ;;
+esac
 
-# Pick one random *.mp3 (handles spaces/apostrophes; NUL-delimited).
-clip="$(find "$dir" -maxdepth 1 -type f -name '*.mp3' -print0 \
-        | tr '\0' '\n' | sort -R | head -n 1)"
-[ -n "$clip" ] || exit 0
+prebuilt="${root}/bin/meeseeks-${os}-${arch}"
+if [ -x "$prebuilt" ]; then
+  exec "$prebuilt" "$@"
+fi
 
-# Choose the first available audio player for this platform.
-play() {
-  local f="$1"
-  # afplay (macOS) and ffplay/mpg123 decode mp3; paplay/aplay are WAV-only fallbacks.
-  if   command -v afplay        >/dev/null 2>&1; then afplay "$f"
-  elif command -v ffplay        >/dev/null 2>&1; then ffplay -nodisp -autoexit -loglevel quiet "$f"
-  elif command -v mpg123        >/dev/null 2>&1; then mpg123 -q "$f"
-  elif command -v paplay        >/dev/null 2>&1; then paplay "$f"
-  elif command -v aplay         >/dev/null 2>&1; then aplay -q "$f"
-  elif command -v powershell.exe >/dev/null 2>&1; then
-    powershell.exe -NoProfile -c "(New-Object Media.SoundPlayer '$f').PlaySync()"
+# Fallback: build from source if a Go toolchain is available.
+if command -v go >/dev/null 2>&1; then
+  cache="${HOME}/.cache/claude-meseeks"
+  built="${cache}/meeseeks"
+  mkdir -p "$cache" 2>/dev/null
+  if [ ! -x "$built" ] || [ "${root}/main.go" -nt "$built" ]; then
+    ( cd "$root" && go build -o "$built" . ) >/dev/null 2>&1 || exit 0
   fi
-}
+  [ -x "$built" ] && exec "$built" "$@"
+fi
 
-# Detach so a long clip never freezes the prompt and survives the hook exiting.
-( play "$clip" >/dev/null 2>&1 & ) &
-
+# No binary and no Go: stay silent rather than break the session.
 exit 0

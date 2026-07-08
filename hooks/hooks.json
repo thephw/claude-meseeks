@@ -1,16 +1,9 @@
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/play.sh done" }
-        ]
-      }
-    ],
     "Notification": [
       {
         "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/play.sh asking" }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/play.sh notify" }
         ]
       }
     ]
