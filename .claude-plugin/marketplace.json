@@ -3,7 +3,7 @@
   "owner": { "name": "Patrick Wiseman" },
   "plugins": [
     {
-      "name": "claude-meseeks",
+      "name": "mr-meeseeks",
       "source": "./",
       "description": "Plays a Mr. Meeseeks voice line whenever Claude is waiting for you."
     }

@@ -1,6 +1,6 @@
 {
-  "name": "claude-meseeks",
-  "displayName": "Claude Meeseeks",
+  "name": "mr-meeseeks",
+  "displayName": "Mr. Meeseeks",
   "version": "0.3.0",
   "description": "Existence is pain — plays a Mr. Meeseeks voice line whenever Claude is waiting for you.",
   "author": { "name": "Patrick Wiseman" },

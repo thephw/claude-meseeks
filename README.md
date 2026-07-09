@@ -22,14 +22,14 @@ This repository is both the plugin and its own marketplace.
 
 ```
 /plugin marketplace add thephw/claude-meseeks
-/plugin install claude-meseeks@claude-meseeks
+/plugin install mr-meeseeks@claude-meseeks
 ```
 
 Or, from a local clone:
 
 ```
 /plugin marketplace add /path/to/claude-meseeks
-/plugin install claude-meseeks@claude-meseeks
+/plugin install mr-meeseeks@claude-meseeks
 ```
 
 Restart or reload Claude Code and finish a turn — you should hear Meeseeks.

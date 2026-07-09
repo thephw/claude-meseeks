@@ -85,6 +85,13 @@ Validate manifests after edits: `python3 -m json.tool` on the three JSON files.
 After changing behavior, rebuild prebuilts (`./scripts/build.sh`), reinstall
 (`claude plugin uninstall`/`install`, or bump the version), and `/reload-plugins`.
 
+## Git workflow
+
+- **Never commit to `main` directly.** Always branch, push, and open a PR — even for
+  small changes. Let the user merge.
+- Create a topic branch (e.g. `feat/…`, `fix/…`, `docs/…`), commit there, push, and open
+  the PR with `gh pr create`.
+
 ## Conventions
 
 - Clip filenames keep their ` - AUDIO FROM JAYUZUMI.COM.mp3` suffix; `clipName` strips it
