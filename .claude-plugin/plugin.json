@@ -4,6 +4,9 @@
   "version": "0.3.0",
   "description": "Existence is pain — plays a Mr. Meeseeks voice line whenever Claude is waiting for you.",
   "author": { "name": "Patrick Wiseman" },
+  "homepage": "https://github.com/thephw/claude-meseeks",
+  "repository": "https://github.com/thephw/claude-meseeks",
+  "license": "MIT",
   "keywords": ["audio", "sound", "notification", "fun", "meeseeks"],
   "userConfig": {
     "enableDone": {

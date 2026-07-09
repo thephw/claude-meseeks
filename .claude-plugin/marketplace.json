@@ -1,5 +1,6 @@
 {
   "name": "claude-meseeks",
+  "description": "Mr. Meeseeks voice lines for Claude Code — plays a clip whenever Claude is waiting on you.",
   "owner": { "name": "Patrick Wiseman" },
   "plugins": [
     {
