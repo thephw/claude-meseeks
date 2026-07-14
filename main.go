@@ -23,7 +23,7 @@ import (
 //go:embed audio
 var audioFS embed.FS
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 func main() {
 	args := os.Args[1:]
@@ -38,6 +38,14 @@ func main() {
 		cmdNotify() // reads a Notification hook payload on stdin
 	case "list":
 		os.Exit(cmdList(args[1:]))
+	case "enable":
+		os.Exit(cmdSetEnabled(args[1:], true))
+	case "disable":
+		os.Exit(cmdSetEnabled(args[1:], false))
+	case "toggle":
+		os.Exit(cmdToggle(args[1:]))
+	case "status":
+		os.Exit(cmdStatus())
 	case "version", "-v", "--version":
 		fmt.Println("meeseeks " + version)
 	case "help", "-h", "--help":
@@ -56,6 +64,10 @@ Usage:
   meeseeks play [category] [--wait] [--clip <substring>]
   meeseeks notify           # decide from a hook event payload on stdin
   meeseeks list [category|all]
+  meeseeks enable  <category|all>   # unmute a category
+  meeseeks disable <category|all>   # mute a category
+  meeseeks toggle  <category|all>   # flip a category
+  meeseeks status                   # show which categories are on/off
   meeseeks version
 
 Categories: done (default), asking, feedback
@@ -72,14 +84,19 @@ the user is genuinely being waited on (and that category's toggle is enabled):
   permission_prompt -> an "asking" clip (Claude needs your approval)
   anything else     -> silence (background-agent, auth, elicitation events…)
 
-Toggles: set the plugin's enableDone / enableAsking / enableFeedback options
-(exported as CLAUDE_PLUGIN_OPTION_* env vars) to "false" to silence a category.
+Muting: enable/disable/toggle persist per-category state to
+  $XDG_CONFIG_HOME/claude-meseeks/state.json (default ~/.config/claude-meseeks).
+The state file takes precedence over the CLAUDE_PLUGIN_OPTION_* env vars, which
+still work as a manual fallback. A category with no saved state plays by default.
 
 Examples:
   meeseeks play                      # random "done" clip
   meeseeks play asking
   meeseeks play --clip "ALL DONE" --wait
   meeseeks list all
+  meeseeks disable feedback          # stop the prompt-submit clip
+  meeseeks enable all
+  meeseeks status
 `)
 }
 
@@ -102,7 +119,7 @@ func cmdNotify() {
 		return
 	}
 	category, ok := categoryForEvent(payload.HookEventName, payload.NotificationType)
-	if ok && categoryEnabled(category, os.Getenv) {
+	if ok && categoryEnabled(category, os.Getenv, readState()) {
 		playCategory(category, false)
 	}
 }
@@ -126,13 +143,20 @@ func categoryForEvent(hookEventName, notificationType string) (string, bool) {
 }
 
 // categoryEnabled reports whether automatic playback is enabled for a category.
-// It reads the plugin's per-category toggle, exported by Claude Code as a
-// CLAUDE_PLUGIN_OPTION_<key> environment variable. Both the exact-case and
-// upper-case variants are checked, since the exported casing is unspecified. A
-// category defaults to enabled: an unset or unrecognized value plays, and only
-// an explicit falsey value ("false"/"0"/"off"/"no") silences it. Pure given
-// getenv — unit tested. getenv is injected so tests need not touch os.Environ.
-func categoryEnabled(category string, getenv func(string) string) bool {
+// Precedence, most-specific first:
+//  1. an explicit entry in the persisted state file (set by enable/disable/toggle)
+//  2. the CLAUDE_PLUGIN_OPTION_<key> env var, exported by Claude Code — both the
+//     exact-case and upper-case variants are checked, since the exported casing
+//     is unspecified. Only an explicit falsey value ("false"/"0"/"off"/"no")
+//     silences a category here.
+//  3. the default: enabled.
+//
+// Pure given getenv and state — unit tested. Both are injected so tests need not
+// touch os.Environ or the filesystem.
+func categoryEnabled(category string, getenv func(string) string, state map[string]bool) bool {
+	if v, ok := state[category]; ok {
+		return v
+	}
 	var key string
 	switch category {
 	case "done":
@@ -153,6 +177,86 @@ func categoryEnabled(category string, getenv func(string) string) bool {
 		return false
 	default: // "", "true", or anything else -> enabled
 		return true
+	}
+}
+
+// categoriesFor resolves the category argument for the mutating verbs, printing
+// a friendly error and returning a non-zero exit code when it can't. Requiring
+// an explicit category (rather than defaulting empty to "all") means a slash
+// command whose placeholder failed to substitute reports "specify a category"
+// instead of silently muting everything.
+func categoriesFor(arg string) ([]string, int) {
+	cats := resolveCategories(arg)
+	if cats == nil {
+		if arg == "" {
+			fmt.Fprintln(os.Stderr, "meeseeks: specify a category: done, asking, feedback, or all")
+		} else {
+			fmt.Fprintf(os.Stderr, "meeseeks: unknown category %q (want: done, asking, feedback, all)\n", arg)
+		}
+		return nil, 2
+	}
+	return cats, 0
+}
+
+// cmdSetEnabled sets the given category (or "all") to enabled/disabled in the
+// persisted state file, then prints the resulting status. Returns an exit code.
+func cmdSetEnabled(args []string, enabled bool) int {
+	arg := ""
+	if len(args) > 0 {
+		arg = args[0]
+	}
+	cats, code := categoriesFor(arg)
+	if code != 0 {
+		return code
+	}
+	state := readState()
+	for _, c := range cats {
+		state[c] = enabled
+	}
+	if err := writeState(state); err != nil {
+		fmt.Fprintf(os.Stderr, "meeseeks: could not save state: %v\n", err)
+		return 1
+	}
+	printStatus(state)
+	return 0
+}
+
+// cmdToggle flips the effective enabled state of the given category (or "all").
+func cmdToggle(args []string) int {
+	arg := ""
+	if len(args) > 0 {
+		arg = args[0]
+	}
+	cats, code := categoriesFor(arg)
+	if code != 0 {
+		return code
+	}
+	state := readState()
+	for _, c := range cats {
+		state[c] = !categoryEnabled(c, os.Getenv, state)
+	}
+	if err := writeState(state); err != nil {
+		fmt.Fprintf(os.Stderr, "meeseeks: could not save state: %v\n", err)
+		return 1
+	}
+	printStatus(state)
+	return 0
+}
+
+// cmdStatus prints the effective on/off state of every category.
+func cmdStatus() int {
+	printStatus(readState())
+	return 0
+}
+
+// printStatus reports each category's effective state given the override map.
+func printStatus(state map[string]bool) {
+	for _, c := range categories {
+		status := "on"
+		if !categoryEnabled(c, os.Getenv, state) {
+			status = "off"
+		}
+		fmt.Printf("%-9s %s\n", c, status)
 	}
 }
 
