@@ -55,6 +55,11 @@ meeseeks play asking               # random "asking" clip
 meeseeks play feedback --wait      # a prompt-submit clip, blocking until it finishes
 meeseeks play --clip "ALL DONE"    # a specific clip by name
 meeseeks list all                  # list every embedded clip
+
+meeseeks status                    # show which categories are on/off
+meeseeks disable feedback          # mute a category
+meeseeks enable all                # unmute (categories: done, asking, feedback, all)
+meeseeks toggle done               # flip a category
 ```
 
 ## How it works
@@ -77,14 +82,35 @@ The chosen clip is extracted from the embedded audio to a cache dir and handed t
 player in a detached process. Every path exits 0, so the hook never blocks or errors your
 session.
 
-Each category can be silenced independently via the plugin's config options
-(`enableDone` / `enableAsking` / `enableFeedback`) — Claude Code prompts for these when you
-enable the plugin, and passes them to the hook as `CLAUDE_PLUGIN_OPTION_*` env vars. They
-default to on; only automatic hook playback is gated (manual `meeseeks play` always plays).
+Each category plays by default; only automatic hook playback is gated (manual `meeseeks play`
+always plays). See [Configuring which sounds play](#configuring-which-sounds-play) below.
 
 > **Why not the `Stop` hook?** `Stop` fires at the end of *every* turn — including
 > auto-continuations — so it plays sounds when you aren't actually being waited on. The
 > event-type filter is the reliable signal for "it's your turn."
+
+## Configuring which sounds play
+
+Use the plugin's slash commands from any Claude Code session:
+
+```
+/mr-meeseeks:status            # show which categories are on/off
+/mr-meeseeks:mute feedback     # silence a category (done | asking | feedback | all)
+/mr-meeseeks:unmute done       # turn it back on
+/mr-meeseeks:mute all          # silence everything
+/mr-meeseeks:help              # what the categories mean + how to configure
+```
+
+Choices are saved to `~/.config/claude-meseeks/state.json` (honoring `$XDG_CONFIG_HOME`) and
+take effect **immediately** — no `/reload-plugins` or restart needed. The equivalent CLI verbs
+are `meeseeks status` / `disable` / `enable` / `toggle`.
+
+> **Why slash commands instead of the `/plugin` config screen?** Claude Code currently renders
+> every plugin `userConfig` option as a free-text field with no working toggle
+> ([claude-code#74289](https://github.com/anthropics/claude-code/issues/74289)), so a real
+> in-UI boolean toggle isn't possible yet. The slash commands are the reliable path. Power users
+> can still set `CLAUDE_PLUGIN_OPTION_enableDone` / `enableAsking` / `enableFeedback` to `false`
+> in `settings.json`; the state file above takes precedence over those.
 
 ## Customizing clips
 
